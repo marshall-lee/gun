@@ -510,7 +510,7 @@ loop(State=#state{parent=Parent, owner=Owner, host=Host,
 		{ws_upgrade, Owner, Path, Headers} when Protocol =/= gun_spdy ->
 			%% @todo
 			ProtoState2 = Protocol:ws_upgrade(ProtoState,
-				Path, Headers),
+				Host, Path, Headers),
 			ws_loop(State#state{protocol=gun_ws, protocol_state=ProtoState2});
 		{shutdown, Owner} ->
 			%% @todo Protocol:shutdown?
