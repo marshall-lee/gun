@@ -22,6 +22,7 @@
 -export([request/7]).
 -export([data/4]).
 -export([cancel/2]).
+-export([ws_upgrade/4]).
 
 -type opts() :: [{version, cow_http:version()}].
 -export_type([opts/0]).
@@ -36,6 +37,8 @@
 	connection = keepalive :: keepalive | close,
 	buffer = <<>> :: binary(),
 	streams = [] :: [{reference(), boolean()}], %% ref + whether stream is alive
+	ws_upgrade_stream :: reference(),
+	ws_accept :: binary(),
 	in = head :: io(),
 	in_state :: {non_neg_integer(), non_neg_integer()},
 	out = head :: io()
@@ -334,3 +337,16 @@ cancel_stream(State=#http_state{streams=Streams}, StreamRef) ->
 
 end_stream(State=#http_state{streams=[_|Tail]}) ->
 	State#http_state{in=head, streams=Tail}.
+
+%% Websockets.
+
+ws_upgrade(State=#http_state{out=head}, Host, Path, Headers) ->
+	StreamRef = make_ref(),
+	HandshakeHeaders =  [{<<"upgrade">>, <<"websocket">>},
+			{<<"connection">>, <<"Upgrade">>},
+			{<<"sec-websocket-version">>, <<"13">>},
+			{<<"sec-websocket-key">>, <<"dGhlIHNhbXBsZSBub25jZQ==">>}],
+	WsAccept = <<"s3pPLMBiTxaQ9kYGzzhZRbK+xOo=">>,
+	State2 = State#http_state{version='HTTP/1.1', ws_upgrade_stream=StreamRef, ws_accept=WsAccept},
+	request(State2, StreamRef, <<"GET">>,
+			Host, Path, Headers ++ HandshakeHeaders).
