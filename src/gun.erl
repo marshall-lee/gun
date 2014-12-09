@@ -511,7 +511,9 @@ loop(State=#state{parent=Parent, owner=Owner, host=Host,
 			%% @todo
 			ProtoState2 = Protocol:ws_upgrade(ProtoState,
 				Host, Path, Headers),
-			ws_loop(State#state{protocol=gun_ws, protocol_state=ProtoState2});
+			loop(State#state{protocol_state=ProtoState2});
+		ws_upgrade_ok ->
+			ws_loop(State#state{protocol=gun_ws});
 		{shutdown, Owner} ->
 			%% @todo Protocol:shutdown?
 			ok;
