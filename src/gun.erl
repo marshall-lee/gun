@@ -513,7 +513,7 @@ loop(State=#state{parent=Parent, owner=Owner, host=Host,
 				Host, Path, Headers),
 			loop(State#state{protocol_state=ProtoState2});
 		ws_upgrade_ok ->
-			ws_loop(State#state{protocol=gun_ws});
+			ws_loop(State#state{protocol=gun_ws, protocol_state=gun_ws:init(Owner, Socket, Transport)});
 		{shutdown, Owner} ->
 			%% @todo Protocol:shutdown?
 			ok;
