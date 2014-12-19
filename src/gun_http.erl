@@ -127,6 +127,39 @@ handle(Data, State=#http_state{in={body, Length}, connection=Conn}) ->
 			end
 	end.
 
+handle_head(Data, State=#http_state{owner=Owner, ws_upgrade_stream=WsUpgradeStream, ws_accept=WsAccept,
+		streams=[{StreamRef, _}|_]}) when WsUpgradeStream =:= StreamRef ->
+	{_, Status, _, Rest} = cow_http:parse_status_line(Data),
+	{Headers, _} = cow_http:parse_headers(Rest),
+	case Status of
+		101 ->
+			Result = case {lists:keyfind(<<"connection">>, 1, Headers),
+					lists:keyfind(<<"upgrade">>, 1, Headers),
+					lists:keyfind(<<"sec-websocket-accept">>, 1, Headers)} of
+						{{_, ConnHd}, {_, UpgradeHd}, {_, WsAcceptHd}} ->
+							ConnList = cow_http_hd:parse_connection(ConnHd),
+							case {ConnList, UpgradeHd, WsAcceptHd} of
+								{[<<"upgrade">>], <<"websocket">>, WsAccept} ->
+									ok;
+								_ ->
+									error
+							end;
+						_ ->
+							error
+					end,
+			case Result of
+				ok ->
+					Owner ! {gun_ws_upgrade, self(), ok},
+					self() ! ws_upgrade_ok,
+					State#http_state{ws_upgrade_stream=undefined};
+				error ->
+					Owner ! {gun_ws_upgrade, self(), error, false, Status, Headers},
+					close
+			end;
+		_ ->
+			handle_head(Data, State#http_state{ws_upgrade_stream=undefined})
+	end;
+
 handle_head(Data, State=#http_state{owner=Owner, version=ClientVersion,
 		connection=Conn, streams=[{StreamRef, IsAlive}|_]}) ->
 	{Version, Status, _, Rest} = cow_http:parse_status_line(Data),

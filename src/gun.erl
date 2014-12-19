@@ -547,8 +547,14 @@ ws_loop(State=#state{parent=Parent, owner=Owner, retry=Retry, socket=Socket,
 	ok = Transport:setopts(Socket, [{active, once}]),
 	receive
 		{OK, Socket, Data} ->
-			ProtoState2 = Protocol:handle(ProtoState, Data),
-			ws_loop(State#state{protocol_state=ProtoState2});
+			case Protocol:handle(ProtoState, Data) of
+				close ->
+					Transport:close(Socket),
+					retry(State#state{socket=undefined, transport=undefined,
+						protocol=undefined}, Retry);
+				ProtoState2 ->
+					ws_loop(State#state{protocol_state=ProtoState2})
+			end;
 		{Closed, Socket} ->
 			Transport:close(Socket),
 			retry(State#state{socket=undefined, transport=undefined,
